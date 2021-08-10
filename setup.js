@@ -1,10 +1,19 @@
 const fs = require('fs');
-const {resolve, join} = require('path');
-const {MongoMemoryServer} = require('mongodb-memory-server');
+const { resolve, join } = require('path');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const { MongoMemoryReplSet } = require('mongodb-memory-server');
 const cwd = process.cwd();
 
+function getMongoMemoryServerInstance(options) {
+  if (options.replSet) {
+    return new MongoMemoryReplSet(options);
+  } else {
+    return new MongoMemoryServer(getMongodbMemoryOptions());
+  }
+}
+
 const debug = require('debug')('jest-mongodb:setup');
-const mongod = new MongoMemoryServer(getMongodbMemoryOptions());
+const mongod = getMongoMemoryServerInstance(getMongodbMemoryOptions());
 
 const globalConfigPath = join(cwd, 'globalConfig.json');
 
@@ -18,7 +27,7 @@ module.exports = async () => {
 
   const mongoConfig = {
     mongoUri: await mongod.getUri(),
-    mongoDBName: options.instance.dbName,
+    mongoDBName: options.instance ? options.instance.dbName : options.replSet.dbName,
   };
 
   // Write global config to disk because all tests run in different contexts.
@@ -32,7 +41,7 @@ module.exports = async () => {
 
 function getMongodbMemoryOptions() {
   try {
-    const {mongodbMemoryServerOptions} = require(resolve(cwd, 'jest-mongodb-config.js'));
+    const { mongodbMemoryServerOptions } = require(resolve(cwd, 'jest-mongodb-config.js'));
 
     return mongodbMemoryServerOptions;
   } catch (e) {
@@ -48,7 +57,7 @@ function getMongodbMemoryOptions() {
 
 function getMongoURLEnvName() {
   try {
-    const {mongoURLEnvName} = require(resolve(cwd, 'jest-mongodb-config.js'));
+    const { mongoURLEnvName } = require(resolve(cwd, 'jest-mongodb-config.js'));
 
     return mongoURLEnvName || 'MONGO_URL';
   } catch (e) {
